@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow anyone to read the visitor count.
+    // Allow creating and updating the visitor count document.
+    match /analytics/{docId} {
+      allow read, create, update: if true;
+      allow delete: if false; // explicitely deny deletion
+    }
+    // Deny all other reads/writes by default for security.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
