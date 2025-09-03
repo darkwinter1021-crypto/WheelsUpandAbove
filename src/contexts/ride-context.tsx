@@ -1,14 +1,17 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { Ride, Conversation, Message } from '../lib/types';
-import { initialRides, initialConversations } from '../lib/data';
+import { initialConversations } from '../lib/data';
+import { db } from '../lib/firebase';
+import { collection, addDoc, getDocs, doc, updateDoc, onSnapshot, query, orderBy, serverTimestamp } from 'firebase/firestore';
 
 interface RideContextType {
   rides: Ride[];
-  addRide: (ride: Ride) => void;
-  updateRide: (rideId: string, updates: Partial<Ride>) => void;
+  loading: boolean;
+  addRide: (ride: Omit<Ride, 'id'>) => Promise<string>;
+  updateRide: (rideId: string, updates: Partial<Ride>) => Promise<void>;
   conversations: Conversation[];
   getConversation: (participants: string[]) => Conversation | undefined;
   sendMessage: (conversationId: string, message: Message) => void;
@@ -18,19 +21,79 @@ interface RideContextType {
 const RideContext = createContext<RideContextType | undefined>(undefined);
 
 export const RideProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [rides, setRides] = useState<Ride[]>(initialRides);
+  const [rides, setRides] = useState<Ride[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
   const [conversations, setConversations] = useState<Conversation[]>(initialConversations);
 
-  const addRide = (ride: Ride) => {
-    setRides(prevRides => [ride, ...prevRides]);
+  // Fetch rides from Firestore on component mount
+  useEffect(() => {
+    const fetchRides = async () => {
+      setLoading(true);
+      try {
+        const ridesQuery = query(collection(db, 'rides'), orderBy('createdAt', 'desc'));
+        
+        // Set up real-time listener for rides collection
+        const unsubscribe = onSnapshot(ridesQuery, (snapshot) => {
+          const ridesData = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              departureTime: data.departureTime ? data.departureTime.toDate() : new Date(), // Convert Firestore timestamp to Date with fallback
+              driver: data.driver // Assuming driver data is stored directly
+            } as Ride;
+          });
+          setRides(ridesData);
+          setLoading(false);
+        }, (error) => {
+          console.error("Error fetching rides:", error);
+          setLoading(false);
+        });
+        
+        return () => unsubscribe();
+      } catch (error) {
+        console.error("Error setting up rides listener:", error);
+        setLoading(false);
+      }
+    };
+    
+    fetchRides();
+  }, []);
+
+  const addRide = async (ride: Omit<Ride, 'id'>) => {
+    try {
+      // Add the ride to Firestore
+      const rideData = {
+        ...ride,
+        createdAt: serverTimestamp()
+      };
+      
+      // Add the ride to Firestore
+      const docRef = await addDoc(collection(db, 'rides'), rideData);
+      
+      // Return the new ride ID
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding ride:', error);
+      throw error;
+    }
   };
   
-  const updateRide = (rideId: string, updates: Partial<Ride>) => {
-    setRides(prevRides => 
+  const updateRide = async (rideId: string, updates: Partial<Ride>) => {
+    try {
+      const rideRef = doc(db, 'rides', rideId);
+      await updateDoc(rideRef, updates);
+      
+      // Update local state to reflect changes
+      setRides(prevRides => 
         prevRides.map(ride => 
-            ride.id === rideId ? { ...ride, ...updates } : ride
+          ride.id === rideId ? { ...ride, ...updates } : ride
         )
-    );
+      );
+    } catch (error) {
+      console.error("Error updating ride:", error);
+      throw error;
+    }
   };
 
   const getConversation = (participants: string[]) => {
@@ -58,7 +121,7 @@ export const RideProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 
   return (
-    <RideContext.Provider value={{ rides, addRide, updateRide, conversations, getConversation, sendMessage, createConversation }}>
+    <RideContext.Provider value={{ rides, loading, addRide, updateRide, conversations, getConversation, sendMessage, createConversation }}>
       {children}
     </RideContext.Provider>
   );

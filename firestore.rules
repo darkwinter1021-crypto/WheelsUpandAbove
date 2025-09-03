@@ -5,8 +5,34 @@ service cloud.firestore {
     // Allow creating and updating the visitor count document.
     match /analytics/{docId} {
       allow read, create, update: if true;
-      allow delete: if false; // explicitely deny deletion
+      allow delete: if false; // explicitly deny deletion
     }
+    
+    // Allow anyone to read rides
+    match /rides/{rideId} {
+      allow read: if true;
+      // Only allow authenticated users to create rides
+      allow create: if request.auth != null;
+      // Only allow the ride creator to update or delete their own rides
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.driver.id;
+      
+      // Allow listing all rides
+      match /{document=**} {
+        allow read: if true;
+      }
+    }
+    
+    // User profiles can be read by anyone but only updated by the owner
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Conversations can only be read and written by participants
+    match /conversations/{conversationId} {
+      allow read, write: if request.auth != null;
+    }
+    
     // Deny all other reads/writes by default for security.
     match /{document=**} {
       allow read, write: if false;

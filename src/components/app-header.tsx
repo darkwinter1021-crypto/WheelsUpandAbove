@@ -9,7 +9,7 @@ import { Button } from './ui/button';
 import { useAuth } from '../contexts/auth-context';
 import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
-import { Sheet, SheetContent, SheetTrigger, SheetClose } from './ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetTitle } from './ui/sheet';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -94,6 +94,7 @@ export function AppHeader() {
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="flex flex-col p-0">
+        <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
         <div className="p-4 border-b">
              <Link href="/" className="flex items-center space-x-2">
                 <Car className="h-8 w-8 text-primary" />

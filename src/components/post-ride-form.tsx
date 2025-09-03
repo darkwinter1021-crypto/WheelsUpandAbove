@@ -31,6 +31,7 @@ import { Card } from './ui/card';
 import { useRides } from '../contexts/ride-context';
 import { useAuth } from '../contexts/auth-context';
 import { useRouter } from 'next/navigation';
+import { Timestamp } from 'firebase/firestore';
 import { mhtLocations } from '../lib/data';
 
 const formSchema = z.object({
@@ -79,33 +80,45 @@ export function PostRideForm() {
         return;
     }
 
-    const [hours, minutes] = values.departureTime.split(':').map(Number);
-    const departureDateTime = new Date(values.departureDate);
-    departureDateTime.setHours(hours, minutes);
-    
-    addRide({
-      id: `ride_${Date.now()}`,
-      origin: values.origin,
-      destination: values.destination,
-      departureTime: departureDateTime,
-      availableSeats: values.availableSeats,
-      price: values.priceOption === 'paid' ? values.price! : 'Free',
-      driver: dbUser,
-      originCoords: [17.44, 78.34],
-      destinationCoords: [17.41, 78.44]
-    });
-
-    await new Promise(resolve => setTimeout(resolve, 500)); 
-    toast({
-        title: "Ride Posted!",
-        description: `Your ride from ${values.origin} to ${values.destination} is now live.`,
-        variant: 'default',
-        className: 'bg-primary text-primary-foreground'
-    });
-    
-    form.reset();
-    setIsSubmitting(false);
-    router.push('/');
+    try {
+      const [hours, minutes] = values.departureTime.split(':').map(Number);
+      const departureDateTime = new Date(values.departureDate);
+      departureDateTime.setHours(hours, minutes);
+      
+      // Create a new ride object to save to Firestore
+      const newRide = {
+        origin: values.origin,
+        destination: values.destination,
+        departureTime: Timestamp.fromDate(departureDateTime), // Properly convert to Firestore timestamp
+        availableSeats: values.availableSeats,
+        price: values.priceOption === 'paid' ? values.price! : 0, // Use numeric 0 instead of 'Free' for consistency
+        driver: dbUser,
+        originCoords: [17.44, 78.34], // These would be set by geocoding in a real app
+        destinationCoords: [17.41, 78.44]
+      };
+      
+      // Use the updated addRide function that returns a Promise with the new ride ID
+      const rideId = await addRide(newRide);
+      
+      toast({
+          title: "Ride Posted!",
+          description: `Your ride from ${values.origin} to ${values.destination} is now live.`,
+          variant: 'default',
+          className: 'bg-primary text-primary-foreground'
+      });
+      
+      form.reset();
+      router.push('/');
+    } catch (error) {
+      console.error('Error posting ride:', error);
+      toast({
+        title: "Error",
+        description: "There was a problem posting your ride. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
   
   async function handleSuggestPrice() {

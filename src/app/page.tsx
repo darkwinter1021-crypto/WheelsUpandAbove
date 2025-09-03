@@ -66,7 +66,7 @@ function CommunityCounter() {
 
 function RideList() {
     const searchParams = useSearchParams();
-    const { rides: allRides } = useRides();
+    const { rides: allRides, loading } = useRides();
 
     const availableRides = (() => {
         const origin = searchParams.get('origin') || '';
@@ -93,7 +93,12 @@ function RideList() {
         <section className="py-16 bg-background">
             <div className="container mx-auto px-4">
                 <h2 className="text-3xl font-bold font-headline mb-8 text-center">Available Rides</h2>
-                {availableRides.length > 0 ? (
+                {loading ? (
+                    <div className="flex justify-center items-center py-10">
+                        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                        <span className="ml-4 text-lg">Loading rides...</span>
+                    </div>
+                ) : availableRides.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {availableRides.map((ride) => (
                             <RideCard key={ride.id} ride={ride} />
