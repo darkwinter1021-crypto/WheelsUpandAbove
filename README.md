@@ -1,5 +1,1 @@
-# Firebase Studio
-
-This is a NextJS starter in Firebase Studio.
-
-To get started, take a look at src/app/page.tsx.
+WheelsUp is a carpooling platform designed to connect individuals traveling in similar directions, making transportation more affordable, efficient, and environmentally friendly. The project focused on ride matching, user profiles, route coordination, and improving accessibility to shared transportation.
